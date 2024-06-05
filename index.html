@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice to Email</title>
+</head>
+<body>
+    <h1>Speak your email</h1>
+    <button id="recordButton">Start Recording</button>
+    <button id="stopButton" disabled>Stop Recording</button>
+    <audio id="audioPlayback" controls></audio>
+    <script>
+        let mediaRecorder;
+        let audioChunks = [];
+
+        document.getElementById('recordButton').onclick = () => {
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(stream => {
+                    mediaRecorder = new MediaRecorder(stream);
+                    mediaRecorder.start();
+                    mediaRecorder.ondataavailable = event => {
+                        audioChunks.push(event.data);
+                    };
+                    mediaRecorder.onstop = () => {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                        const audioUrl = URL.createObjectURL(audioBlob);
+                        const audio = document.getElementById('audioPlayback');
+                        audio.src = audioUrl;
+
+                        // Send the audio to the Make webhook
+                        const formData = new FormData();
+                        formData.append('audio', audioBlob);
+                        fetch('https://hook.eu2.make.com/im746k9i825ax9a56xaguqrkkpcbgsov', {
+                            method: 'POST',
+                            body: formData
+                        }).then(response => response.json())
+                          .then(data => {
+                              console.log('Transcription:', data.text);
+                          });
+                    };
+                    document.getElementById('stopButton').disabled = false;
+                    document.getElementById('recordButton').disabled = true;
+                });
+        };
+
+        document.getElementById('stopButton').onclick = () => {
+            mediaRecorder.stop();
+            document.getElementById('stopButton').disabled = true;
+            document.getElementById('recordButton').disabled = false;
+        };
+    </script>
+</body>
+</html>
